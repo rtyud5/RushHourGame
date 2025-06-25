@@ -1,0 +1,13 @@
+{
+  "vehicles": [
+    { "id": "X", "orientation": "H", "row": 2, "col": 1, "length": 2 },
+    { "id": "A", "orientation": "H", "row": 0, "col": 0, "length": 3 },
+    { "id": "B", "orientation": "H", "row": 1, "col": 3, "length": 2 },
+    { "id": "C", "orientation": "V", "row": 0, "col": 5, "length": 3 },
+    { "id": "D", "orientation": "V", "row": 3, "col": 2, "length": 2 },
+    { "id": "E", "orientation": "V", "row": 3, "col": 4, "length": 2 },
+    { "id": "F", "orientation": "V", "row": 4, "col": 0, "length": 2 },
+    { "id": "G", "orientation": "V", "row": 4, "col": 1, "length": 2 },
+    { "id": "H", "orientation": "V", "row": 2, "col": 3, "length": 2 }
+  ]
+}
