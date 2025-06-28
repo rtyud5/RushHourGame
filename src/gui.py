@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 import glob, os, threading, time
+from PIL import Image, ImageTk
 
 from map_loader import load_map
 from utils import Board, Vehicle
@@ -14,6 +15,7 @@ CELL_SIZE = 80  # pixels per grid cell
 class RushHourApp:
     def __init__(self):
         self.root = tk.Tk()
+        self.image_cache = {}
         self.root.title("Rush Hour")
 
         # Detect available level files map1.json ... mapN.json
@@ -129,25 +131,66 @@ class RushHourApp:
         algo_btn.config(menu=menu)
         algo_btn.grid(row=1, column=2, pady=10)
 
+    # Load image
+    def get_vehicle_image(self, vehicle):
+
+        key = (self.current_level, vehicle.id, vehicle.orientation, vehicle.length)
+        if key in self.image_cache:
+            return self.image_cache[key]
+
+        filename = f"{vehicle.id.lower()}_{vehicle.orientation.lower()}_{vehicle.length}.png"
+        
+        # Go in images/map{level}/
+        if hasattr(self, 'current_level'):
+            path_level = os.path.join("images", f"map{self.current_level}", filename)
+            if os.path.exists(path_level):
+                path = path_level
+            else:
+                # fallback back to images/
+                path = os.path.join("images", filename)
+        else:
+            path = os.path.join("images", filename)
+
+        try:
+            img = Image.open(path)
+            width = CELL_SIZE * (vehicle.length if vehicle.orientation == 'H' else 1)
+            height = CELL_SIZE * (vehicle.length if vehicle.orientation == 'V' else 1)
+            try:
+                resample = Image.Resampling.LANCZOS
+            except AttributeError:
+                resample = Image.ANTIALIAS
+            img = img.resize((width, height), resample)
+            tk_img = ImageTk.PhotoImage(img)
+            self.image_cache[key] = tk_img
+            return tk_img
+        except Exception as e:
+            print(f"[ERROR] Cant load {path}: {e}")
+            return None
+
     def redraw_game(self):
-        # Clear canvas
         self.canvas.delete('all')
 
-        # Draw grid lines
+        # Vẽ lưới
         for i in range(7):
             self.canvas.create_line(0, i*CELL_SIZE, 6*CELL_SIZE, i*CELL_SIZE)
             self.canvas.create_line(i*CELL_SIZE, 0, i*CELL_SIZE, 6*CELL_SIZE)
 
-        # Draw vehicles
+        # Vẽ từng vehicle
         for v in self.board.vehicles.values():
             x0 = v.col * CELL_SIZE
             y0 = v.row * CELL_SIZE
-            w = (v.length if v.orientation=='H' else 1) * CELL_SIZE
-            h = (v.length if v.orientation=='V' else 1) * CELL_SIZE
-            color = 'red' if v.id=='X' else 'blue'
-            self.canvas.create_rectangle(x0, y0, x0+w, y0+h, fill=color, outline='black')
-            self.canvas.create_text(x0 + w/2, y0 + h/2,
-                                    text=v.id, fill='white', font=('Arial',14,'bold'))
+
+            # Dùng ảnh nếu có
+            img = self.get_vehicle_image(v)
+            if img:
+                self.canvas.create_image(x0, y0, anchor='nw', image=img)
+            else:
+                # Fallback: vẽ rectangle nếu không có ảnh
+                w = (v.length if v.orientation == 'H' else 1) * CELL_SIZE
+                h = (v.length if v.orientation == 'V' else 1) * CELL_SIZE
+                color = 'red' if v.id == 'X' else 'blue'
+                self.canvas.create_rectangle(x0, y0, x0+w, y0+h, fill=color, outline='black')
+                self.canvas.create_text(x0 + w/2, y0 + h/2, text=v.id, fill='white', font=('Arial', 14, 'bold'))
 
     def _auto_solve(self):
         # Choose solver based on selection
