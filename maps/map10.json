@@ -8,7 +8,7 @@
     { "id": "E", "orientation": "H", "row": 1, "col": 1, "length": 2 },
     { "id": "F", "orientation": "V", "row": 1, "col": 5, "length": 3 },
     { "id": "G", "orientation": "H", "row": 3, "col": 0, "length": 2 },
-    { "id": "H", "orientation": "V", "row": 3, "col": 2, "length": 3 },
+    { "id": "H", "orientation": "V", "row": 3, "col": 2, "length": 2 },
     { "id": "I", "orientation": "H", "row": 4, "col": 0, "length": 2 },
     { "id": "J", "orientation": "H", "row": 5, "col": 0, "length": 3 },
     { "id": "K", "orientation": "V", "row": 4, "col": 3, "length": 2 },
