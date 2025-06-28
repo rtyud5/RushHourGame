@@ -1,0 +1,7 @@
+{
+  "vehicles": [
+    { "id": "X", "orientation": "H", "row": 2, "col": 1, "length": 2 },
+    { "id": "A", "orientation": "V", "row": 2, "col": 3, "length": 3 },
+    { "id": "B", "orientation": "H", "row": 2, "col": 4, "length": 2 }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+    "vehicles": [
+        { "id": "X", "orientation": "H", "row": 2, "col": 0, "length": 2 },
+        { "id": "A", "orientation": "H", "row": 1, "col": 0, "length": 2 },
+        { "id": "B", "orientation": "V", "row": 0, "col": 2, "length": 3 },
+        { "id": "C", "orientation": "V", "row": 0, "col": 3, "length": 3 },
+        { "id": "D", "orientation": "V", "row": 0, "col": 4, "length": 3 },
+        { "id": "E", "orientation": "H", "row": 3, "col": 3, "length": 2 },
+        { "id": "F", "orientation": "V", "row": 1, "col": 5, "length": 3 }
+    ]
+}

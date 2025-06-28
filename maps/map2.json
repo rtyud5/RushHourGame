@@ -1,8 +1,8 @@
 {
   "vehicles": [
-    { "id": "X", "orientation": "H", "row": 2, "col": 0, "length": 2 },
-    { "id": "A", "orientation": "V", "row": 0, "col": 3, "length": 3 },
-    { "id": "B", "orientation": "V", "row": 1, "col": 5, "length": 3 },
-    { "id": "C", "orientation": "H", "row": 4, "col": 1, "length": 2 }
+    { "id": "X", "orientation": "H", "row": 2, "col": 1, "length": 2 },
+    { "id": "A", "orientation": "V", "row": 0, "col": 2, "length": 2 },
+    { "id": "B", "orientation": "V", "row": 1, "col": 4, "length": 2 },
+    { "id": "C", "orientation": "H", "row": 4, "col": 0, "length": 3 }
   ]
 }
