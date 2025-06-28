@@ -9,256 +9,275 @@ from solver.dfs import dfs
 from solver.ucs import ucs
 from solver.astar import astar
 
-# Kích thước mỗi ô trong canvas (80px) để board 6x6 = 480x480px
+# Kích thước mỗi ô trên board (6x6)
 CELL_SIZE = 80
 
-class RushHourGUI:
+class RushHourApp:
     def __init__(self):
         # Khởi tạo cửa sổ chính
         self.root = tk.Tk()
-        self.root.title('Rush Hour Solver')
+        self.root.title("Rush Hour")
 
-        # Canvas hiển thị board 6x6
-        self.canvas = tk.Canvas(
-            self.root,
-            width=6 * CELL_SIZE,
-            height=6 * CELL_SIZE,
-            bg='white'
-        )
-        self.canvas.grid(row=0, column=0, columnspan=6)
-
-        # Chuẩn bị danh sách levels tự động từ file maps/mapN.json
+        # Tự động phát hiện các file mapN.json trong thư mục maps/
         files = glob.glob(os.path.join('maps', 'map*.json'))
-        levels = sorted(
-            [os.path.splitext(os.path.basename(f))[0].replace('map', '')
-             for f in files],
-            key=lambda x: int(x)
+        # levels = [1,2,3,...] dựa trên tên file map1.json -> 1
+        self.levels = sorted(
+            [int(os.path.splitext(os.path.basename(f))[0].replace('map',''))
+             for f in files]
         )
-        # ComboBox chọn level
-        self.level_var = tk.StringVar(value=levels[0] if levels else '')
-        ttk.Label(self.root, text='Level:').grid(row=1, column=0, padx=4)
-        ttk.Combobox(
-            self.root,
-            textvariable=self.level_var,
-            values=levels,
-            state='readonly',
-            width=5
-        ).grid(row=1, column=1)
 
-        # ComboBox chọn chế độ Manual hoặc Auto
-        self.mode_var = tk.StringVar(value='Manual')
-        ttk.Label(self.root, text='Mode:').grid(row=1, column=2, padx=4)
-        ttk.Combobox(
-            self.root,
-            textvariable=self.mode_var,
-            values=['Manual', 'Auto'],
-            state='readonly',
-            width=7
-        ).grid(row=1, column=3)
+        # Tạo 3 Frame để chuyển đổi giữa các màn hình:
+        #  - frame_main: màn hình chính (START / EXIT)
+        #  - frame_select: chọn level (1..10)
+        #  - frame_game: màn hình chơi/solve
+        self.frame_main   = tk.Frame(self.root)
+        self.frame_select = tk.Frame(self.root)
+        self.frame_game   = tk.Frame(self.root)
 
-        # ComboBox chọn thuật toán khi Auto
-        self.algo_var = tk.StringVar(value='bfs')
-        ttk.Label(self.root, text='Algo:').grid(row=1, column=4, padx=4)
-        ttk.Combobox(
-            self.root,
-            textvariable=self.algo_var,
-            values=['bfs', 'dfs', 'ucs', 'astar'],
-            state='readonly',
-            width=7
-        ).grid(row=1, column=5)
+        # Xây dựng nội dung từng frame
+        self._build_main_menu()
+        self._build_level_select()
+        self._build_game_ui()
 
-        # Khởi tạo Buttons: Load, Solve, Reset, Quit
-        btn_frame = tk.Frame(self.root)
-        btn_frame.grid(row=2, column=0, columnspan=6, pady=5)
-        ttk.Button(btn_frame, text='Load Level', command=self.load_level).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text='Solve',      command=self.solve).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text='Reset',      command=self.redraw).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text='Quit',       command=self.root.destroy).pack(side='left', padx=5)
-
-        # Biến lưu board hiện tại và board gốc (cho Auto)
-        self.board = None
-        self.initial_board = None
-        # Xe đang chọn (Manual)
-        self.selected_id = None
-
-        # Gán sự kiện chuột và phím mũi tên cho Manual mode
-        self.canvas.bind('<Button-1>', self.on_click)
-        self.root.bind('<Left>',  lambda e: self.try_move(-1,  0))
-        self.root.bind('<Right>', lambda e: self.try_move( 1,  0))
-        self.root.bind('<Up>',    lambda e: self.try_move( 0, -1))
-        self.root.bind('<Down>',  lambda e: self.try_move( 0,  1))
-
-        # Bắt đầu main loop
+        # Bắt đầu với màn hình chính
+        self.show_frame(self.frame_main)
         self.root.mainloop()
 
-    def load_level(self):
+    def show_frame(self, frame):
         """
-        Load bản đồ từ maps/map{level}.json
-        Tạo self.board và self.initial_board để sử dụng cho cả Manual & Auto.
-        Reset self.selected_id.
+        Ẩn tất cả các frame, chỉ hiển thị frame được truyền vào.
+        Giúp chuyển giữa các màn hình.
         """
-        lvl = self.level_var.get()
-        path = os.path.join('maps', f'map{lvl}.json')
+        for f in (self.frame_main, self.frame_select, self.frame_game):
+            f.grid_forget()
+        frame.grid(row=0, column=0, sticky="nsew")
+
+    # Màn hình 1: Main Menu
+    def _build_main_menu(self):
+        f = self.frame_main
+        # Thiết lập background
+        f.configure(bg='#888888')
+
+        # Tiêu đề game
+        tk.Label(
+            f,
+            text="RUSH HOUR",
+            font=("Impact", 48),
+            bg='#888888',
+            fg='white'
+        ).pack(pady=80)
+
+        # Nút START
+        tk.Button(
+            f,
+            text="START",
+            font=("Arial", 24),
+            width=10, height=2,
+            bg='#00AA00', fg='white',
+            command=lambda: self.show_frame(self.frame_select)
+        ).pack(pady=20)
+
+        # Nút EXIT
+        tk.Button(
+            f,
+            text="EXIT",
+            font=("Arial", 24),
+            width=10, height=2,
+            bg='#AA0000', fg='white',
+            command=self.root.destroy
+        ).pack()
+
+    # Màn hình 2: Level Select
+    def _build_level_select(self):
+        f = self.frame_select
+        # Nền
+        f.configure(bg='#444444')
+
+        # Nút BACK về Main Menu
+        tk.Button(
+            f,
+            text="← BACK",
+            font=("Arial", 16),
+            bg='#FFFFFF',
+            command=lambda: self.show_frame(self.frame_main)
+        ).grid(row=0, column=0, sticky="nw", padx=10, pady=10)
+
+        # Tiêu đề Select Level
+        tk.Label(
+            f,
+            text="SELECT LEVEL",
+            font=("Arial", 32),
+            bg='#444444',
+            fg='white'
+        ).grid(row=0, column=1, columnspan=4, pady=20)
+
+        # Tạo nút cho mỗi level (1..10)
+        for idx, lvl in enumerate(self.levels):
+            # Sắp xếp 2 hàng 5 cột
+            r = idx // 5 + 1
+            c = idx % 5
+            # Màu
+            colors = ['#FFFF66','#FFFF66','#FFFF66','#FFFF66','#FFFF66',
+                      '#FFCC33','#FFCC33','#FF9933','#FF3333','#CC0000']
+            btn = tk.Button(
+                f,
+                text=str(lvl),
+                font=("Arial", 20, "bold"),
+                width=4, height=2,
+                bg=colors[idx],
+                command=lambda L=lvl: self._on_level_selected(L)
+            )
+            btn.grid(row=r, column=c, padx=20, pady=20)
+
+    def _on_level_selected(self, level):
+        """
+        Khi người chơi chọn một level:
+        1. Load file maps/map{level}.json
+        2. Tạo Board hiện tại và bản sao initial_board
+        3. Redraw và chuyển sang màn hình chơi
+        """
+        path = os.path.join('maps', f'map{level}.json')
         try:
             vehicles = load_map(path)
         except Exception as e:
-            messagebox.showerror('Error', f'Không thể load {path}:\n{e}')
+            messagebox.showerror("Error",
+                                 f"Không load được map{level}.json:\n{e}")
             return
-        # Khởi tạo board hiện tại và bản sao gốc
-        self.board = Board(vehicles)
-        self.initial_board = Board({vid: v for vid, v in vehicles.items()})
-        self.selected_id = None
-        self.redraw()
 
-    def redraw(self):
+        # Board hiện tại
+        self.board = Board(vehicles)
+        # Bản sao ban đầu
+        self.initial_board = Board({vid: v for vid, v in vehicles.items()})
+        self.current_level = level
+        # GUI sẽ luôn có thể quay về trạng thái map ban đầu
+        self.redraw_game()
+        self.show_frame(self.frame_game)
+
+    # Màn hình 3: Game Play
+    def _build_game_ui(self):
+        f = self.frame_game
+        # Nền tạm
+        f.configure(bg='#EEEEEE')
+
+        # Canvas để vẽ board (6x6 * CELL_SIZE)
+        self.canvas = tk.Canvas(
+            f,
+            width=6*CELL_SIZE,
+            height=6*CELL_SIZE,
+            bg='#CCCCCC'
+        )
+        self.canvas.grid(row=0, column=0, columnspan=4, padx=20, pady=20)
+
+        # Nút LEVELS quay lại màn hình chọn level
+        tk.Button(
+            f,
+            text="← LEVELS",
+            font=("Arial", 14),
+            command=lambda: self.show_frame(self.frame_select)
+        ).grid(row=1, column=0, pady=10)
+
+        # Nút Solve: auto-solve
+        tk.Button(
+            f,
+            text="Solve",
+            font=("Arial", 14),
+            command=self._auto_solve
+        ).grid(row=1, column=1, pady=10)
+
+        # Menu chọn thuật toán (BFS/DFS/UCS/A*)
+        btn_algo = tk.Menubutton(f, text="Algo", font=("Arial", 14))
+        self.algo_menu = tk.Menu(btn_algo, tearoff=0)
+        # Tạo radiobutton cho mỗi thuật toán
+        for a in ['bfs','dfs','ucs','astar']:
+            self.algo_menu.add_radiobutton(
+                label=a.upper(),
+                variable=tk.StringVar(value='bfs'),
+                value=a,
+                command=lambda v=a: setattr(self, 'chosen_algo', v)
+            )
+        btn_algo.config(menu=self.algo_menu)
+        btn_algo.grid(row=1, column=2, pady=10)
+
+        # Mặc định dùng BFS khi không chọn thuật toán nào
+        self.chosen_algo = 'bfs'
+
+    def redraw_game(self):
         """
-        Vẽ lại toàn bộ Canvas:
-        1. Lưới 6x6
-        2. Các block (xe) với màu đỏ cho X và xanh dương cho còn lại
-        3. Highlight block được chọn (viền cam)
+        Vẽ lại toàn bộ board hiện tại lên canvas:
+        - Lưới 6x6
+        - Các block: màu đỏ cho X, xanh cho các block khác
+        - ID block ở giữa
         """
         self.canvas.delete('all')
-        # Vẽ lưới ngang và dọc
+
+        # Vẽ lưới
         for i in range(7):
             self.canvas.create_line(0, i*CELL_SIZE, 6*CELL_SIZE, i*CELL_SIZE)
             self.canvas.create_line(i*CELL_SIZE, 0, i*CELL_SIZE, 6*CELL_SIZE)
-        if not self.board:
-            return
-        # Vẽ các block
+
+        # Vẽ từng block
         for v in self.board.vehicles.values():
             x0 = v.col * CELL_SIZE
             y0 = v.row * CELL_SIZE
-            w = (v.length if v.orientation == 'H' else 1) * CELL_SIZE
-            h = (v.length if v.orientation == 'V' else 1) * CELL_SIZE
-            color = 'red' if v.id == 'X' else 'skyblue'
-            rect = self.canvas.create_rectangle(
-                x0, y0, x0 + w, y0 + h,
-                fill=color, outline='black', width=2
+            w = (v.length if v.orientation=='H' else 1) * CELL_SIZE
+            h = (v.length if v.orientation=='V' else 1) * CELL_SIZE
+            # Màu: đỏ cho X, xanh cho các block còn lại
+            color = 'red' if v.id=='X' else 'blue'
+            self.canvas.create_rectangle(
+                x0, y0, x0+w, y0+h,
+                fill=color, outline='black'
             )
-            # Vẽ chữ id ở giữa block
+            # Vẽ ID block ở giữa
             self.canvas.create_text(
                 x0 + w/2, y0 + h/2,
-                text=v.id, font=('Arial', 16, 'bold')
-            )
-            # Gắn tag theo id để detect click
-            self.canvas.itemconfig(rect, tags=(v.id,))
-        # Nếu manual mode và có block chọn, highlight
-        if self.selected_id:
-            v = self.board.vehicles[self.selected_id]
-            x0 = v.col * CELL_SIZE
-            y0 = v.row * CELL_SIZE
-            w = (v.length if v.orientation == 'H' else 1) * CELL_SIZE
-            h = (v.length if v.orientation == 'V' else 1) * CELL_SIZE
-            self.canvas.create_rectangle(
-                x0, y0, x0 + w, y0 + h,
-                outline='orange', width=4
+                text=v.id,
+                fill='white',
+                font=('Arial', 14, 'bold')
             )
 
-    def on_click(self, event):
+    def _auto_solve(self):
         """
-        Bắt sự kiện click: chọn xe ở vị trí click (Manual mode only).
+        Gọi thuật toán solve được chọn (BFS/DFS/UCS/A*):
+        1. Nhận đường đi `path` từ initial_board
+        2. Reset board về initial
+        3. Animate từng bước với delay
+        4. Thông báo khi xong và quay về màn hình chọn level
         """
-        if self.mode_var.get() != 'Manual' or not self.board:
-            return
-        # Lấy item overlap
-        items = self.canvas.find_overlapping(event.x, event.y, event.x, event.y)
-        for it in items:
-            tags = self.canvas.gettags(it)
-            if tags and tags[0] in self.board.vehicles:
-                self.selected_id = tags[0]
-                self.redraw()
-                return
-
-    def try_move(self, dx, dy):
-        """
-        Di chuyển block được chọn một ô dx,dy (Manual mode only).
-        Kiểm biên, collision, update self.board rồi redraw.
-        Sau đó kiểm goal.
-        """
-        if self.mode_var.get() != 'Manual' or not self.board or not self.selected_id:
-            return
-        v = self.board.vehicles[self.selected_id]
-        # Chỉ di chuyển theo chiều của xe
-        if (v.orientation == 'H' and dy != 0) or (v.orientation == 'V' and dx != 0):
-            return
-        new_row = v.row + dy
-        new_col = v.col + dx
-        # Kiểm biên
-        if new_row < 0 or new_col < 0:
-            return
-        end_r = new_row + (v.length - 1 if v.orientation == 'V' else 0)
-        end_c = new_col + (v.length - 1 if v.orientation == 'H' else 0)
-        if end_r > 5 or end_c > 5:
-            return
-        # Kiểm collision với các block khác
-        occ = self.board.get_occupied()
-        # Xóa vị trí cũ của block
-        for i in range(v.length):
-            rr = v.row + (i if v.orientation == 'V' else 0)
-            cc = v.col + (i if v.orientation == 'H' else 0)
-            occ[rr][cc] = None
-        # Kiểm chỗ mới có trống không
-        for i in range(v.length):
-            rr = new_row + (i if v.orientation == 'V' else 0)
-            cc = new_col + (i if v.orientation == 'H' else 0)
-            if occ[rr][cc] is not None:
-                return
-        # Cập nhật vị trí và vẽ lại
-        self.board.vehicles[self.selected_id] = Vehicle(
-            v.id, v.orientation, new_row, new_col, v.length
-        )
-        self.redraw()
-        # Kiểm goal
-        if self.board.is_goal():
-            messagebox.showinfo('Level Completed', 'Bạn đã hoàn thành!')
-            self.board = None
-            self.selected_id = None
-            self.redraw()
-
-    def solve(self):
-        """
-        Auto-solve khi mode='Auto'.
-        1. Lấy path từ BFS/DFS/UCS/A*
-        2. Reset board về self.initial_board
-        3. Animate di chuyển từng bước
-        4. Hiện thông báo khi xong và reset GUI
-        """
-        if not self.board:
-            messagebox.showwarning('Warning', 'Chưa load level!')
-            return
-        if self.mode_var.get() == 'Manual':
-            messagebox.showinfo('Manual Mode', 'Bạn đang chơi thủ công.')
-            return
-        # Chọn hàm thuật toán
+        # Lấy hàm solver theo self.chosen_algo
         funcs = {'bfs': bfs, 'dfs': dfs, 'ucs': ucs, 'astar': astar}
-        path = funcs[self.algo_var.get()](self.initial_board)
-        if path is None:
-            messagebox.showinfo('No Solution', 'Không tìm thấy lời giải.')
-            return
-        # Reset board
-        self.board = Board({vid:v for vid,v in self.initial_board.vehicles.items()})
-        self.redraw()
-        # Animate in separate thread để không block GUI
-        threading.Thread(target=self.animate, args=(path,)).start()
+        solver = funcs[self.chosen_algo]
 
-    def animate(self, path):
-        """
-        Di chuyển tự động theo path (danh sách (vid, move)).
-        Sleep giữa các bước để thấy animation.
-        """
-        for vid, move in path:
-            time.sleep(0.4)  # điều chỉnh tốc độ tại đây
-            v = self.board.vehicles[vid]
-            # tính dx, dy dựa vào orientation
-            dx, dy = (move, 0) if v.orientation=='H' else (0, move)
-            self.board.vehicles[vid] = Vehicle(
-                v.id, v.orientation, v.row+dy, v.col+dx, v.length
-            )
-            self.redraw()
-        messagebox.showinfo('Solved', 'Game đã tự giải xong!')
-        self.board = None
-        self.selected_id = None
-        self.redraw()
+        # Chạy solve trên initial_board
+        path = solver(self.initial_board)
+        if not path:
+            messagebox.showinfo("No Solution", "Không tìm thấy lời giải.")
+            return
+
+        # Reset board trước khi animate
+        self.board = Board({vid:v for vid,v in self.initial_board.vehicles.items()})
+        self.redraw_game()
+
+        # Hàm con để animate đường đi
+        def animate():
+            for vid, move in path:
+                time.sleep(0.3)  # pause giữa các bước
+                v = self.board.vehicles[vid]
+                # Tính vị trí mới
+                if v.orientation == 'H':
+                    new_row, new_col = v.row, v.col + move
+                else:
+                    new_row, new_col = v.row + move, v.col
+                # Cập nhật và vẽ lại
+                self.board.vehicles[vid] = Vehicle(
+                    v.id, v.orientation, new_row, new_col, v.length
+                )
+                self.redraw_game()
+            # Kết thúc: thông báo và về màn hình chọn level
+            messagebox.showinfo("Solved", "Đã giải xong!")
+            self.show_frame(self.frame_select)
+
+        # Chạy animation trong thread riêng để không block GUI
+        threading.Thread(target=animate).start()
 
 if __name__ == '__main__':
-    RushHourGUI()
+    RushHourApp()
