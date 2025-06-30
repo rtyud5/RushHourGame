@@ -25,6 +25,17 @@ class RushHourApp:
              for f in files]
         )
 
+        # Statistics variables
+        self.stats = {
+            'steps': 0,
+            'cost': 0,
+            'time': 0.0,
+            'status': "Ready",
+            'nodes': 0,
+            'memory': 0,
+            'algorithm': "None"
+        }
+
         # Prepare three frames for Main, Select Level, and Game
         self.frame_main   = tk.Frame(self.root)
         self.frame_select = tk.Frame(self.root)
@@ -131,6 +142,88 @@ class RushHourApp:
         algo_btn.config(menu=menu)
         algo_btn.grid(row=1, column=2, pady=10)
 
+        # Statistics Panel
+        stats_frame = tk.LabelFrame(f, text="Statistics", font=("Arial", 12, "bold"))
+        stats_frame.grid(row=2, column=0, columnspan=3, padx=20, pady=10, sticky="ew")
+
+        # Row 1: Basic stats
+        basic_frame = tk.Frame(stats_frame)
+        basic_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        
+        self.stats_step_label = tk.Label(basic_frame, text="Steps: 0", font=("Arial", 10))
+        self.stats_step_label.grid(row=0, column=0, padx=10, sticky="w")
+        
+        self.stats_cost_label = tk.Label(basic_frame, text="Total Cost: 0", font=("Arial", 10))
+        self.stats_cost_label.grid(row=0, column=1, padx=10, sticky="w")
+        
+        self.stats_time_label = tk.Label(basic_frame, text="Search Time: 0.0s", font=("Arial", 10))
+        self.stats_time_label.grid(row=0, column=2, padx=10, sticky="w")
+        
+        self.stats_status_label = tk.Label(basic_frame, text="Status: Ready", font=("Arial", 10))
+        self.stats_status_label.grid(row=0, column=3, padx=10, sticky="w")
+        
+        # Row 2: Advanced stats
+        advanced_frame = tk.Frame(stats_frame)
+        advanced_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+        
+        self.stats_nodes_label = tk.Label(advanced_frame, text="Expanded Nodes: 0", font=("Arial", 10))
+        self.stats_nodes_label.grid(row=0, column=0, padx=10, sticky="w")
+        
+        self.stats_memory_label = tk.Label(advanced_frame, text="Memory Usage: 0", font=("Arial", 10))
+        self.stats_memory_label.grid(row=0, column=1, padx=10, sticky="w")
+        
+        self.stats_algorithm_label = tk.Label(advanced_frame, text="Algorithm: None", font=("Arial", 10))
+        self.stats_algorithm_label.grid(row=0, column=2, padx=10, sticky="w")
+        
+        self.stats_efficiency_label = tk.Label(advanced_frame, text="Efficiency: N/A", font=("Arial", 10))
+        self.stats_efficiency_label.grid(row=0, column=3, padx=10, sticky="w")
+
+    def _reset_board(self):
+        """Reset board về trạng thái ban đầu"""
+        if hasattr(self, 'initial_board'):
+            self.board = Board({vid: v for vid, v in self.initial_board.vehicles.items()})
+            self.redraw_game()
+            self.reset_statistics()
+
+    def format_time(self, seconds):
+        """Format thời gian với đơn vị phù hợp"""
+        if seconds < 0.001:
+            return f"{seconds*1000000:.1f}µs"
+        elif seconds < 1.0:
+            return f"{seconds*1000:.2f}ms"
+        else:
+            return f"{seconds:.3f}s"
+        
+    def update_statistics(self):
+        """Cập nhật hiển thị thống kê."""
+        self.stats_step_label.config(text=f"Steps: {self.stats['steps']}")
+        self.stats_cost_label.config(text=f"Total Cost: {self.stats['cost']}")
+        self.stats_time_label.config(text=f"Search Time: {self.format_time(self.stats['time'])}")
+        self.stats_status_label.config(text=f"Status: {self.stats['status']}")
+        self.stats_nodes_label.config(text=f"Expanded Nodes: {self.stats['nodes']}")
+        self.stats_memory_label.config(text=f"Memory Usage: {self.stats['memory']}")
+        self.stats_algorithm_label.config(text=f"Algorithm: {self.stats['algorithm']}")
+    
+        # Calculate efficiency
+        if self.stats['steps'] > 0 and self.stats['nodes'] > 0:
+            efficiency = self.stats['nodes'] / self.stats['steps']
+            self.stats_efficiency_label.config(text=f"Efficiency: {efficiency:.1f} nodes/step")
+        else:
+            self.stats_efficiency_label.config(text="Efficiency: N/A")
+
+    def reset_statistics(self):
+        """Reset tất cả thống kê."""
+        self.stats = {
+            'steps': 0,
+            'cost': 0,
+            'time': 0.0,
+            'status': "Ready",
+            'nodes': 0,
+            'memory': 0,
+            'algorithm': "None"
+        }
+        self.update_statistics()
+
     # Load image
     def get_vehicle_image(self, vehicle):
 
@@ -197,11 +290,41 @@ class RushHourApp:
         funcs = {'bfs': bfs, 'dfs': dfs, 'ucs': ucs, 'astar': astar}
         solver = funcs[self.algo_var.get()]
 
+        # Update algorithm name
+        self.stats['algorithm'] = self.algo_var.get().upper()
+        self.stats['status'] = "Solving..."
+        self.update_statistics()
+
+        # Measure solving time
+        start_time = time.time()
+        
         # Solve using initial board
-        path = solver(self.initial_board)
-        if not path:
-            messagebox.showinfo("No Solution", "Cannot solve level.")
+        result = solver(self.initial_board)
+        
+        end_time = time.time()
+        
+        # Check if solution exists
+        if not result or not result.get('path'):
+            self.stats['status'] = "No Solution"
+            self.stats['time'] = end_time - start_time
+            if result:  # If result exists but no path, update stats anyway
+                self.stats['nodes'] = result.get('nodes_explored', 0)
+                self.stats['memory'] = result.get('max_queue_size', 0)
+            self.update_statistics()
+            messagebox.showinfo("No Solution", "Cannot solve this level.")
             return
+
+        path = result['path']
+        
+        # Update statistics with real data from solver
+        self.stats['time'] = end_time - start_time
+        self.stats['steps'] = len(path)
+        self.stats['cost'] = sum(self.initial_board.vehicles[vid].length for vid, _ in path)
+        self.stats['nodes'] = result.get('nodes_explored', 0)
+        self.stats['memory'] = result.get('max_queue_size', 0)
+        self.stats['status'] = "Solution Found"
+        
+        self.update_statistics()
 
         # Reset to initial
         self.board = Board({vid: v for vid, v in self.initial_board.vehicles.items()})
@@ -218,10 +341,14 @@ class RushHourApp:
                     new_r, new_c = v.row + move, v.col
                 self.board.vehicles[vid] = Vehicle(v.id, v.orientation, new_r, new_c, v.length)
                 self.redraw_game()
-            messagebox.showinfo("Solved", "Done!")
-            self.show_frame(self.frame_select)
 
-        threading.Thread(target=animate).start()
+        self.stats['status'] = "Completed"
+            self.update_statistics()
+            messagebox.showinfo("Solved", f"Solved in {len(path)} steps!\n"
+                              f"Nodes explored: {self.stats['nodes']}\n"
+                              f"Time: {self.format_time(self.stats['time'])}")
+
+        threading.Thread(target=animate, daemon=True).start()
 
 if __name__ == '__main__':
     RushHourApp()
