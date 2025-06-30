@@ -332,6 +332,9 @@ class RushHourApp:
 
         # Animate solution
         def animate():
+            self.stats['status'] = "Solving..."
+            self.update_statistics()
+            
             for vid, move in path:
                 time.sleep(0.3)
                 v = self.board.vehicles[vid]
@@ -344,6 +347,7 @@ class RushHourApp:
 
         self.stats['status'] = "Completed"
         self.update_statistics()
+            
         messagebox.showinfo("Solved", f"Solved in {len(path)} steps!\n"
                             f"Nodes explored: {self.stats['nodes']}\n"
                             f"Time: {self.format_time(self.stats['time'])}")
