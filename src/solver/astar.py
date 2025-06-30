@@ -11,14 +11,30 @@ def astar(initial_board):
     # frontier element: (f = g+h, g, tie_id, board, path)
     heapq.heappush(frontier, (start_h, 0, next(counter), initial_board, []))
     visited = {}
+
+    # Statistics tracking
+    nodes_explored = 0
+    max_queue_size = 1
+    
     while frontier:
+        current_queue_size = len(frontier)
+        max_queue_size = max(max_queue_size, current_queue_size)
+        
         f, g, _, board, path = heapq.heappop(frontier)
+        nodes_explored += 1
+        
         key = board.state_key()
         if key in visited and visited[key] <= g:
             continue
         visited[key] = g
+        
         if board.is_goal():
-            return path
+            return {
+                'path': path,
+                'nodes_explored': nodes_explored,
+                'max_queue_size': max_queue_size
+            }
+            
         for vid, move, nb in board.successors():
             step = nb.vehicles[vid].length
             ng = g + step
@@ -27,4 +43,8 @@ def astar(initial_board):
                 frontier,
                 (ng + h, ng, next(counter), nb, path + [(vid, move)])
             )
-    return None
+    return {
+        'path': None,
+        'nodes_explored': nodes_explored,
+        'max_queue_size': max_queue_size
+    }
