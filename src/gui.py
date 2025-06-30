@@ -343,10 +343,10 @@ class RushHourApp:
                 self.redraw_game()
 
         self.stats['status'] = "Completed"
-            self.update_statistics()
-            messagebox.showinfo("Solved", f"Solved in {len(path)} steps!\n"
-                              f"Nodes explored: {self.stats['nodes']}\n"
-                              f"Time: {self.format_time(self.stats['time'])}")
+        self.update_statistics()
+        messagebox.showinfo("Solved", f"Solved in {len(path)} steps!\n"
+                            f"Nodes explored: {self.stats['nodes']}\n"
+                            f"Time: {self.format_time(self.stats['time'])}")
 
         threading.Thread(target=animate, daemon=True).start()
 
