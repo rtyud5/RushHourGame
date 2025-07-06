@@ -31,7 +31,7 @@ def dfs(initial_board, limit=200, stats=None):
                 # đẩy vào stack theo LIFO
                 stack.append((nb, path + [(vid, move)]))
     # Check if we hit the limit (paths were rejected)
-    if paths_rejected_by_limit > 0:
+    if rejected > 0:
         stats.set_limit_reached()
     stats.stop_tracking()
     return None, stats
