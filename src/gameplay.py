@@ -162,9 +162,8 @@ def solve():
             result, stats = algo_func(initial_board)
             
             if not result:
-                # Show dialog with no solution
+                # Show dialog with no solution or hit limit
                 stats_data = stats.get_formatted_stats()
-                stats_data['status'] = 'No Solution Found'
                 stats_dialog.show(stats_data)
                 return
                 
