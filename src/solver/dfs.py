@@ -2,7 +2,7 @@ from utils import Board
 from statistics import Statistics
 
 # Sử dụng stack thay vì recursion để tránh RecursionError
-def dfs(initial_board, limit=500, stats=None):
+def dfs(initial_board, limit=200, stats=None):
     """Depth-First Search (tham lam, không đảm bảo ngắn nhất)."""
     if stats is None:
         stats = Statistics()
