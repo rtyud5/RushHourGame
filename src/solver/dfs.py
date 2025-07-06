@@ -2,7 +2,7 @@ from utils import Board
 from statistics import Statistics
 
 # Sử dụng stack thay vì recursion để tránh RecursionError
-def dfs(initial_board, limit=200, stats=None):
+def dfs(initial_board, limit=50, stats=None):
     """Depth-First Search (tham lam, không đảm bảo ngắn nhất)."""
     if stats is None:
         stats = Statistics()
@@ -11,12 +11,15 @@ def dfs(initial_board, limit=200, stats=None):
     
     visited = {initial_board.state_key()}
     stack = [(initial_board, [])]
-    rejected = 0  # Track how many paths were rejected due to limit
+    paths_rejected_by_limit = 0
+    max_depth_reached = 0
     while stack:
         # Update statistics
         stats.increment_expanded_nodes()
         
         board, path = stack.pop()
+        current_depth = len(path)
+        max_depth_reached = max(max_depth_reached, current_depth)
         if board.is_goal():
             stats.stop_tracking()
             stats.set_solution(path)
@@ -31,7 +34,7 @@ def dfs(initial_board, limit=200, stats=None):
                 # đẩy vào stack theo LIFO
                 stack.append((nb, path + [(vid, move)]))
     # Check if we hit the limit (paths were rejected)
-    if rejected > 0:
+    if paths_rejected_by_limit > 0 or (stats.expanded_nodes > 500 and max_depth_reached >= limit * 0.8):
         stats.set_limit_reached()
     stats.stop_tracking()
     return None, stats
