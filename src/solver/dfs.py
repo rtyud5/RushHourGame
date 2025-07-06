@@ -25,7 +25,7 @@ def dfs(initial_board, limit=50, stats=None):
             stats.set_solution(path)
             return path, stats
         if len(path) >= limit:
-            rejected += 1 # path bị từ chối bởi limit
+            paths_rejected_by_limit += 1 # path bị từ chối bởi limit
             continue  # đạt limit độ sâu
         for vid, move, nb in board.successors():
             key = nb.state_key()
