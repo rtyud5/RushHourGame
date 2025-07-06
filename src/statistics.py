@@ -19,6 +19,7 @@ class Statistics:
         self.solution_length = 0
         self.solution_found = False
         self.solution_path = []
+        self.hit_limit = False  # track dfs limit
         
     def start_tracking(self, algorithm_name: str):
         self.reset()
@@ -40,6 +41,9 @@ class Statistics:
         self.solution_found = True
         self.solution_path = path
         self.solution_length = len(path)
+
+    def set_limit_reached(self):
+        self.hit_limit = True
         
     def _get_memory_usage(self) -> float:
         try:
@@ -56,6 +60,7 @@ class Statistics:
             'expanded_nodes': self.expanded_nodes,
             'solution_found': self.solution_found,
             'solution_length': self.solution_length,
+            'hit_limit': self.hit_limit,
         }
         
     def format_time(self, seconds: float) -> str:
@@ -75,11 +80,18 @@ class Statistics:
             return f"{mb:.2f}MB"
             
     def get_formatted_stats(self) -> Dict[str, str]:
+        if self.solution_found:
+            status = 'Solved'
+        elif self.hit_limit:
+            status = 'Hit Limit'
+        else:
+            status = 'No Solution'
+        
         return {
             'algorithm': self.algorithm_name,
             'time': self.format_time(self.search_time),
             'memory': self.format_memory(self.memory_usage),
             'expanded_nodes': str(self.expanded_nodes),
             'solution_length': str(self.solution_length),
-            'status': 'Solved' if self.solution_found else 'No Solution'
+            'status': status
         } 
