@@ -19,13 +19,8 @@ WIDTH, HEIGHT = 1100, 800
 stop_event = threading.Event()
 
 STATE = "main_menu"
-
-def set_state(value):
-    global STATE
-    STATE = value
-
-def get_state():
-    return STATE
+previous_state = None
+is_solving = False
 
 LEVELS = sorted([
     int(os.path.splitext(os.path.basename(f))[0].replace('map', ''))
@@ -36,7 +31,6 @@ board = None
 initial_board = None
 algo_func = bfs
 
-# Stats dialog
 stats_dialog = StatsDialog(WIDTH, HEIGHT)
 current_stats = Statistics()
 current_algorithm = "BFS"
@@ -44,17 +38,39 @@ current_algorithm = "BFS"
 car_images = {}
 current_map_folder = None
 background_img = None
-
 tick_img = None
+
+GRID_OFFSET_X = 400
+GRID_OFFSET_Y = 200
+
+pygame.mixer.init()
+click_sound = pygame.mixer.Sound('./sound/click.wav')
+click_sound.set_volume(0.3)
+
+def set_state(value):
+    global STATE, previous_state
+    if value != "pause":
+        previous_state = STATE
+    STATE = value
+
+def get_state():
+    return STATE
+
+def go_back():
+    global previous_state
+    if previous_state:
+        if previous_state == "gameplay":
+            go_to_gameplay(selected_level)
+        else:
+            set_state(previous_state)
+    else:
+        go_to_main_menu()
 
 def load_tick_image():
     global tick_img
     if tick_img is None:
         tick_img = pygame.image.load('./images/src_images/tick.png').convert_alpha()
         tick_img = pygame.transform.scale(tick_img, (40, 40))
-
-GRID_OFFSET_X = 400
-GRID_OFFSET_Y = 200
 
 def load_car_images(map_number):
     global car_images, current_map_folder
@@ -86,7 +102,8 @@ def go_to_main_menu():
     STATE = "main_menu"
 
 def go_to_settings():
-    global STATE
+    global STATE, previous_state
+    previous_state = STATE
     STATE = "settings"
 
 def go_to_gameplay(level):
@@ -99,7 +116,6 @@ def go_to_gameplay(level):
     STATE = "gameplay"
     current_stats = Statistics()
     current_algorithm = algo_func.__name__.upper()
-    stats_dialog.hide()
     load_car_images(level)
 
 def quit_game():
@@ -124,7 +140,7 @@ def select_ucs():
 def select_astar():
     global algo_func, current_algorithm
     algo_func = astar
-    current_algorithm = 'A*'
+    current_algorithm = 'ASTAR'
 
 def reset_game():
     global board, current_stats, current_algorithm
@@ -135,6 +151,72 @@ def reset_game():
         current_algorithm = algo_func.__name__.upper()
         stats_dialog.hide()
     go_to_gameplay(selected_level)
+
+def format_time(seconds):
+    if seconds < 0.001:
+        return f"{seconds * 1_000_000:.0f}µs"
+    elif seconds < 1.0:
+        return f"{seconds * 1000:.2f}ms"
+    else:
+        return f"{seconds:.3f}s"
+
+def solve():
+    def worker():
+        global board, current_stats, stats_dialog, is_solving
+        stop_event.clear()
+        is_solving = True
+
+        current_stats = Statistics()
+        try:
+            result, stats = algo_func(initial_board)
+            if not result:
+                stats_data = stats.get_formatted_stats()
+                stats_dialog.show(stats_data)
+                is_solving = False
+                return
+                
+            final_stats = stats.get_formatted_stats()
+            path = result
+            board = Board({vid: v for vid, v in initial_board.vehicles.items()})
+
+            def sleep_with_stop_check(total_ms, check_interval_ms=50):
+                for _ in range(0, total_ms, check_interval_ms):
+                    if stop_event.is_set():
+                        break
+                    time.sleep(check_interval_ms / 1000)
+
+            animation_completed = True
+            for vid, move in path:
+                if stop_event.is_set():
+                    animation_completed = False
+                    break
+                sleep_with_stop_check(300)
+                if stop_event.is_set():
+                    animation_completed = False
+                    break
+                v = board.vehicles[vid]
+                new_r, new_c = (v.row + move, v.col) if v.orientation == 'V' else (v.row, v.col + move)
+                board.vehicles[vid] = Vehicle(v.id, v.orientation, new_r, new_c, v.length)
+            
+            if animation_completed:
+                time.sleep(0.5)
+                stats_dialog.show(final_stats)
+
+        except Exception as e:
+            error_stats = {
+                'algorithm': current_algorithm,
+                'status': f'Error: {str(e)}',
+                'time': '0ms',
+                'memory': '0KB',
+                'expanded_nodes': '0',
+                'solution_length': '0'
+            }
+            stats_dialog.show(error_stats)
+            print(f"Error during solving: {e}")
+        finally:
+            is_solving = False
+
+    threading.Thread(target=worker, daemon=True).start()
 
 def draw_vehicles(screen):
     for v in board.vehicles.values():
@@ -149,72 +231,6 @@ def draw_vehicles(screen):
             color = (255, 0, 0) if v.id == 'X' else (0, 102, 204)
             pygame.draw.rect(screen, color, (x, y, w, h))
 
-def solve():
-    def worker():
-        global board, current_stats, stats_dialog
-        stop_event.clear()
-        
-        # Reset and start tracking
-        current_stats = Statistics()
-        
-        # Call the algorithm with statistics tracking
-        try:
-            result, stats = algo_func(initial_board)
-            
-            if not result:
-                # Show dialog with no solution or hit limit
-                stats_data = stats.get_formatted_stats()
-                stats_dialog.show(stats_data)
-                return
-                
-            # Store stats for later display
-            final_stats = stats.get_formatted_stats()
-            
-            # Animate the solution first
-            path = result
-            board = Board({vid: v for vid, v in initial_board.vehicles.items()})
-
-            def sleep_with_stop_check(total_ms, check_interval_ms=50):
-                for _ in range(0, total_ms, check_interval_ms):
-                    if stop_event.is_set():
-                        break
-                    time.sleep(check_interval_ms / 1000)
-
-            # Run animation
-            animation_completed = True
-            for vid, move in path:
-                if stop_event.is_set():
-                    animation_completed = False
-                    break
-                sleep_with_stop_check(300)
-                if stop_event.is_set():
-                    animation_completed = False
-                    break
-                v = board.vehicles[vid]
-                new_r, new_c = (v.row + move, v.col) if v.orientation == 'V' else (v.row, v.col + move)
-                board.vehicles[vid] = Vehicle(v.id, v.orientation, new_r, new_c, v.length)
-            
-            # Show statistics dialog only after animation completes
-            if animation_completed:
-                # Add a small delay before showing dialog
-                time.sleep(0.5)
-                stats_dialog.show(final_stats)
-                
-        except Exception as e:
-            # Show error dialog
-            error_stats = {
-                'algorithm': current_algorithm,
-                'status': f'Error: {str(e)}',
-                'time': '0ms',
-                'memory': '0KB',
-                'expanded_nodes': '0',
-                'solution_length': '0'
-            }
-            stats_dialog.show(error_stats)
-            print(f"Error during solving: {e}")
-
-    threading.Thread(target=worker, daemon=True).start()
-
 def gameplay(screen):
     global background_img
     if background_img is None:
@@ -225,16 +241,19 @@ def gameplay(screen):
 
     load_tick_image()
 
+    font = pygame.font.SysFont("Comic Sans MS", 45)
+    percent_text = f"{selected_level}"
+    text_surface = font.render(percent_text, True, (255, 255, 255))
+    screen.blit(text_surface, (470, 105))
+
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
 
-    # Update dialog
     stats_dialog.update(mouse)
 
-    # Handle dialog events
-    if click[0] == 1:  # Left click
+    if click[0] == 1:
         if stats_dialog.handle_click(mouse):
-            pygame.time.delay(150)  # Prevent multiple clicks
+            pygame.time.delay(150)
 
     bfs_button = pygame.Rect(30, 220, 140, 140)
     dfs_button = pygame.Rect(225, 220, 140, 140)
@@ -242,7 +261,7 @@ def gameplay(screen):
     astar_button = pygame.Rect(225, 420, 140, 140)
 
     def draw_tick_on_button(button):
-        tick_pos = (button.x + button.width - 40, button.y + button.height - 40)
+        tick_pos = (button.x + button.width - 30, button.y + button.height - 30)
         screen.blit(tick_img, tick_pos)
 
     if current_algorithm == 'BFS':
@@ -251,21 +270,24 @@ def gameplay(screen):
         draw_tick_on_button(dfs_button)
     elif current_algorithm == 'UCS':
         draw_tick_on_button(ucs_button)
-    elif current_algorithm == 'A*':
+    elif current_algorithm == 'ASTAR':
         draw_tick_on_button(astar_button)
 
-    # Only handle UI clicks if dialog is not visible
-    if not stats_dialog.visible:
+    if not stats_dialog.visible or not is_solving:
         if bfs_button.collidepoint(mouse) and click[0] == 1:
+            click_sound.play()
             pygame.time.delay(150)
             select_bfs()
         elif dfs_button.collidepoint(mouse) and click[0] == 1:
+            click_sound.play()
             pygame.time.delay(150)
             select_dfs()
         elif ucs_button.collidepoint(mouse) and click[0] == 1:
+            click_sound.play()
             pygame.time.delay(150)
             select_ucs()
         elif astar_button.collidepoint(mouse) and click[0] == 1:
+            click_sound.play()
             pygame.time.delay(150)
             select_astar()
 
@@ -275,16 +297,22 @@ def gameplay(screen):
         home_button = pygame.Rect(870, 20, 90, 92)
         settings_button = pygame.Rect(990, 20, 90, 92)
 
-        for button, action in [
-            (solve_button, solve),
-            (reset_button, reset_game),
-            (level_select_button, go_to_level_select),
-            (home_button, go_to_main_menu),
-            (settings_button, lambda: print("Open settings"))
-        ]:
-            if button.collidepoint(mouse) and click[0] == 1:
-                pygame.time.delay(150)
-                action()
+        if not is_solving:
+            for button, action in [
+                (solve_button, solve),
+                (level_select_button, go_to_level_select),
+                (home_button, go_to_main_menu),
+                (settings_button, go_to_settings)
+            ]:
+                if button.collidepoint(mouse) and click[0] == 1:
+                    click_sound.play()
+                    pygame.time.delay(150)
+                    action()
 
-    # Draw dialog last (on top)
+        if reset_button.collidepoint(mouse) and click[0] == 1:
+            click_sound.play()
+            pygame.time.delay(150)
+            reset_game()
+
+
     stats_dialog.draw(screen)
