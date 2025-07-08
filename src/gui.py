@@ -1,6 +1,6 @@
 import pygame
 from pygame.locals import *
-from gameplay import go_to_level_select, go_to_main_menu, go_to_gameplay, go_to_settings, quit_game, set_state
+from gameplay import go_to_level_select, go_to_main_menu, go_to_gameplay, go_to_settings, quit_game, go_back, set_state
 
 pygame.mixer.init()
 
@@ -10,8 +10,11 @@ main_menu_img = None
 level_select_img = None
 settings_img = None
 
-pygame.mixer.music.load("sound.mp3")
+pygame.mixer.music.load("./sound/sound.mp3")
 pygame.mixer.music.play(-1)
+
+click_sound = pygame.mixer.Sound('./sound/click.wav')
+click_sound.set_volume(0.3)
 
 volume = 0.5
 volume_dragging = False
@@ -52,12 +55,15 @@ def main_menu(screen):
     play_button = pygame.Rect(400, 415, 300, 96)
 
     if settings_button.collidepoint(mouse) and click[0] == 1:
+        click_sound.play()
         pygame.time.delay(150)
         go_to_settings()
 
     if play_button.collidepoint(mouse) and click[0] == 1:
+        click_sound.play()
         pygame.time.delay(150)
         go_to_level_select()
+
 
 def level_select(screen):
     global level_select_img
@@ -73,13 +79,16 @@ def level_select(screen):
     click = pygame.mouse.get_pressed()
 
     if BACK_BUTTON.collidepoint(mouse) and click[0] == 1:
+        click_sound.play()
         pygame.time.delay(150)
         go_to_main_menu()
 
     for i, rect in enumerate(level_rects):
         if rect.collidepoint(mouse) and click[0] == 1:
+            click_sound.play()
             pygame.time.delay(150)
             go_to_gameplay(i + 1)
+
 
 def settings(screen):
     global settings_img, volume, volume_dragging
@@ -98,9 +107,6 @@ def settings(screen):
     bar_width, bar_height = 500, 20
     handle_radius = 18
     corner_radius = bar_height // 2
-
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
 
     pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), border_radius=corner_radius)
     handle_x = bar_x + int(volume * bar_width)
@@ -122,7 +128,7 @@ def settings(screen):
     screen.blit(text_surface, (320, 350))
 
     if HELP_BUTTON.collidepoint(mouse) and click[0] == 1:
-        set_state("pause")
+        click_sound.play()
         pygame.time.delay(150)
         settings_img_help = None
         if settings_img_help is None and pygame.display.get_init():
@@ -132,7 +138,7 @@ def settings(screen):
             screen.blit(settings_img_help, (0, 0))
         else:
             screen.fill((30, 30, 30))
-        
+
         pygame.display.update()
 
         running = True
@@ -146,12 +152,12 @@ def settings(screen):
                     exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if BACK_BUTTON.collidepoint(event.pos):
+                        click_sound.play()
                         pygame.time.delay(150)
-                        set_state("settings")
                         running = False
 
     if ABOUT_US_BUTTON.collidepoint(mouse) and click[0] == 1:
-        set_state("pause")
+        click_sound.play()
         pygame.time.delay(150)
         settings_img_about_us = None
         if settings_img_about_us is None and pygame.display.get_init():
@@ -175,13 +181,15 @@ def settings(screen):
                     exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if BACK_BUTTON.collidepoint(event.pos):
+                        click_sound.play()
                         pygame.time.delay(150)
-                        set_state("settings")
                         running = False
 
     if LEAVE_BUTTON.collidepoint(mouse) and click[0] == 1:
+        click_sound.play()
         quit_game()
 
     if BACK_BUTTON.collidepoint(mouse) and click[0] == 1:
+        click_sound.play()
         pygame.time.delay(150)
-        go_to_main_menu()
+        go_back()
