@@ -30,7 +30,7 @@ def show_loading_screen():
         screen.blit(text_surface, (WIDTH // 2 - 25, bar_y - 40))
         
         pygame.display.flip()
-        pygame.time.delay(30)
+        pygame.time.delay(20)
 
 show_loading_screen()
 
