@@ -12,7 +12,7 @@ from solver.dfs import dfs
 from solver.ucs import ucs
 from solver.astar import astar
 from statistics import Statistics
-from dialog import StatsDialog
+from dialog import StatsDialog, PauseDialog
 
 CELL_SIZE = 80
 WIDTH, HEIGHT = 1100, 800
@@ -21,6 +21,7 @@ stop_event = threading.Event()
 STATE = "main_menu"
 previous_state = None
 is_solving = False
+solved = False
 
 LEVELS = sorted([
     int(os.path.splitext(os.path.basename(f))[0].replace('map', ''))
@@ -30,7 +31,10 @@ selected_level = None
 board = None
 initial_board = None
 algo_func = bfs
+is_paused = False
+resume_button_pressed = False
 
+pause_dialog = PauseDialog(WIDTH, HEIGHT)
 stats_dialog = StatsDialog(WIDTH, HEIGHT)
 current_stats = Statistics()
 current_algorithm = "BFS"
@@ -46,6 +50,9 @@ GRID_OFFSET_Y = 200
 pygame.mixer.init()
 click_sound = pygame.mixer.Sound('./sound/click.wav')
 click_sound.set_volume(0.3)
+
+win_sound = pygame.mixer.Sound('./sound/win.wav')
+win_sound.set_volume(0.5)
 
 def set_state(value):
     global STATE, previous_state
@@ -102,8 +109,9 @@ def go_to_main_menu():
     STATE = "main_menu"
 
 def go_to_settings():
-    global STATE, previous_state
+    global STATE, previous_state, solved
     previous_state = STATE
+    solved = False
     STATE = "settings"
 
 def go_to_gameplay(level):
@@ -143,9 +151,10 @@ def select_astar():
     current_algorithm = 'ASTAR'
 
 def reset_game():
-    global board, current_stats, current_algorithm
+    global board, current_stats, current_algorithm, solved
     stop_event.set()
     if initial_board:
+        solved = False
         board = Board({vid: v for vid, v in initial_board.vehicles.items()})
         current_stats = Statistics()
         current_algorithm = algo_func.__name__.upper()
@@ -162,7 +171,7 @@ def format_time(seconds):
 
 def solve():
     def worker():
-        global board, current_stats, stats_dialog, is_solving
+        global board, current_stats, stats_dialog, is_solving, is_paused, solved
         stop_event.clear()
         is_solving = True
 
@@ -173,6 +182,7 @@ def solve():
                 stats_data = stats.get_formatted_stats()
                 stats_dialog.show(stats_data)
                 is_solving = False
+                solved = True
                 return
                 
             final_stats = stats.get_formatted_stats()
@@ -190,10 +200,22 @@ def solve():
                 if stop_event.is_set():
                     animation_completed = False
                     break
+                
+                while is_paused:
+                    if stop_event.is_set():
+                        animation_completed = False
+                        break
+                    time.sleep(0.05)
+                
+                if not animation_completed:
+                    break
+                
                 sleep_with_stop_check(300)
+                
                 if stop_event.is_set():
                     animation_completed = False
                     break
+                
                 v = board.vehicles[vid]
                 new_r, new_c = (v.row + move, v.col) if v.orientation == 'V' else (v.row, v.col + move)
                 board.vehicles[vid] = Vehicle(v.id, v.orientation, new_r, new_c, v.length)
@@ -215,6 +237,8 @@ def solve():
             print(f"Error during solving: {e}")
         finally:
             is_solving = False
+            solved = True
+            win_sound.play()
 
     threading.Thread(target=worker, daemon=True).start()
 
@@ -232,9 +256,11 @@ def draw_vehicles(screen):
             pygame.draw.rect(screen, color, (x, y, w, h))
 
 def gameplay(screen):
-    global background_img
-    if background_img is None:
+    global background_img, is_paused, resume_button_pressed
+    if not is_solving:
         background_img = pygame.image.load('./images/gui/gameplaybg.png').convert()
+    else:
+        background_img = pygame.image.load('./images/gui/pause.png').convert()
 
     screen.blit(background_img, (0, 0))
     draw_vehicles(screen)
@@ -250,6 +276,9 @@ def gameplay(screen):
     click = pygame.mouse.get_pressed()
 
     stats_dialog.update(mouse)
+    pause_dialog.update(mouse)
+
+    pause_button = pygame.Rect(70, 590, 90, 92)
 
     if click[0] == 1:
         if stats_dialog.handle_click(mouse):
@@ -273,46 +302,78 @@ def gameplay(screen):
     elif current_algorithm == 'ASTAR':
         draw_tick_on_button(astar_button)
 
-    if not stats_dialog.visible or not is_solving:
-        if bfs_button.collidepoint(mouse) and click[0] == 1:
-            click_sound.play()
-            pygame.time.delay(150)
-            select_bfs()
-        elif dfs_button.collidepoint(mouse) and click[0] == 1:
-            click_sound.play()
-            pygame.time.delay(150)
-            select_dfs()
-        elif ucs_button.collidepoint(mouse) and click[0] == 1:
-            click_sound.play()
-            pygame.time.delay(150)
-            select_ucs()
-        elif astar_button.collidepoint(mouse) and click[0] == 1:
-            click_sound.play()
-            pygame.time.delay(150)
-            select_astar()
+    if is_solving:
+        if pause_button.collidepoint(mouse) and click[0] == 1:
+            if not is_paused:
+                pygame.time.delay(150)
+                is_paused = True
+                pause_dialog.show()
+            else:
+                is_paused = False
+                pause_dialog.hide()
 
-        solve_button = pygame.Rect(70, 590, 90, 92)
-        reset_button = pygame.Rect(230, 590, 90, 92)
-        level_select_button = pygame.Rect(750, 20, 90, 92)
-        home_button = pygame.Rect(870, 20, 90, 92)
-        settings_button = pygame.Rect(990, 20, 90, 92)
+        if is_paused:
+            if pause_dialog.button_rect.collidepoint(mouse):
+                if click[0] == 1 and not resume_button_pressed:
+                    pygame.time.delay(150)
+                    is_paused = False
+                    pause_dialog.hide()
+                    resume_button_pressed = True
+                elif click[0] == 0:
+                    resume_button_pressed = False
+            else:
+                resume_button_pressed = False
 
-        if not is_solving:
+            pause_dialog.draw(screen)
+            return
+
+    if not solved:
+        if not stats_dialog.visible:
+            solve_button = pygame.Rect(70, 590, 90, 92)
+            reset_button = pygame.Rect(230, 590, 90, 92)
+            level_select_button = pygame.Rect(750, 20, 90, 92)
+            home_button = pygame.Rect(870, 20, 90, 92)
+            settings_button = pygame.Rect(990, 20, 90, 92)
+
+            if not is_solving:
+                for button, action in [
+                    (bfs_button, select_bfs),
+                    (dfs_button, select_dfs),
+                    (ucs_button, select_ucs),
+                    (astar_button, select_astar),
+                    (solve_button, solve),
+                    (level_select_button, go_to_level_select),
+                    (home_button, go_to_main_menu),
+                    (settings_button, go_to_settings)
+                ]:
+                    if button.collidepoint(mouse) and click[0] == 1:
+                        click_sound.play()
+                        pygame.time.delay(150)
+                        action()
+
+            if reset_button.collidepoint(mouse) and click[0] == 1:
+                click_sound.play()
+                pygame.time.delay(150)
+                reset_game()
+    else:
+        if not stats_dialog.visible:
+            reset_button = pygame.Rect(230, 590, 90, 92)
+            level_select_button = pygame.Rect(750, 20, 90, 92)
+            home_button = pygame.Rect(870, 20, 90, 92)
+            settings_button = pygame.Rect(990, 20, 90, 92)
             for button, action in [
-                (solve_button, solve),
+                (bfs_button, select_bfs),
+                (dfs_button, select_dfs),
+                (ucs_button, select_ucs),
+                (astar_button, select_astar),
                 (level_select_button, go_to_level_select),
                 (home_button, go_to_main_menu),
-                (settings_button, go_to_settings)
+                (settings_button, go_to_settings),
+                (reset_button, reset_game)
             ]:
                 if button.collidepoint(mouse) and click[0] == 1:
                     click_sound.play()
                     pygame.time.delay(150)
                     action()
-
-        if reset_button.collidepoint(mouse) and click[0] == 1:
-            click_sound.play()
-            pygame.time.delay(150)
-            reset_game()
-
 
     stats_dialog.draw(screen)
