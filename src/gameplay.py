@@ -221,6 +221,7 @@ def solve():
                 board.vehicles[vid] = Vehicle(v.id, v.orientation, new_r, new_c, v.length)
             
             if animation_completed:
+                win_sound.play()
                 time.sleep(0.5)
                 stats_dialog.show(final_stats)
 
@@ -238,7 +239,6 @@ def solve():
         finally:
             is_solving = False
             solved = True
-            win_sound.play()
 
     threading.Thread(target=worker, daemon=True).start()
 
