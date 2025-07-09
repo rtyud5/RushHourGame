@@ -147,3 +147,80 @@ class StatsDialog:
         c1 = 1.70158
         c3 = c1 + 1
         return 1 + c3 * pow(t - 1, 3) + c1 * pow(t - 1, 2)
+
+class PauseDialog:
+    def __init__(self, screen_width, screen_height):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.visible = False
+        self.dialog_width = 400
+        self.dialog_height = 200
+        self.dialog_x = (screen_width - self.dialog_width) // 2
+        self.dialog_y = (screen_height - self.dialog_height) // 2
+
+        self.overlay_color = (0, 0, 0, 150)
+        self.dialog_bg_color = (30, 30, 30)
+        self.border_color = (255, 255, 255)
+        self.title_color = (255, 255, 255)
+        self.button_color = (70, 130, 180)
+        self.button_hover_color = (100, 150, 220)
+
+        self.title_font = None
+        self.button_font = None
+
+        self.button_width = 120
+        self.button_height = 50
+        self.button_x = self.dialog_x + (self.dialog_width - self.button_width) // 2
+        self.button_y = self.dialog_y + self.dialog_height - 70
+        self.button_rect = pygame.Rect(self.button_x, self.button_y, self.button_width, self.button_height)
+        self.button_hovered = False
+
+    def _init_fonts(self):
+        if self.title_font is None:
+            self.title_font = pygame.font.SysFont("Arial", 36, bold=True)
+            self.button_font = pygame.font.SysFont("Arial", 28)
+
+    def show(self):
+        self.visible = True
+
+    def hide(self):
+        self.visible = False
+
+    def update(self, mouse_pos):
+        if not self.visible:
+            return
+        self.button_hovered = self.button_rect.collidepoint(mouse_pos)
+
+    def handle_click(self, mouse_pos):
+        if not self.visible:
+            return False
+        if self.button_rect.collidepoint(mouse_pos):
+            self.hide()
+            return True
+        return False
+
+    def draw(self, screen):
+        if not self.visible:
+            return
+
+        self._init_fonts()
+
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill(self.overlay_color)
+        screen.blit(overlay, (0, 0))
+
+        dialog_rect = pygame.Rect(self.dialog_x, self.dialog_y, self.dialog_width, self.dialog_height)
+        pygame.draw.rect(screen, self.dialog_bg_color, dialog_rect, border_radius=15)
+        pygame.draw.rect(screen, self.border_color, dialog_rect, 3, border_radius=15)
+
+        title_text = self.title_font.render("Game Paused", True, self.title_color)
+        title_x = self.dialog_x + (self.dialog_width - title_text.get_width()) // 2
+        title_y = self.dialog_y + 40
+        screen.blit(title_text, (title_x, title_y))
+
+        button_color = self.button_hover_color if self.button_hovered else self.button_color
+        pygame.draw.rect(screen, button_color, self.button_rect, border_radius=12)
+        button_text = self.button_font.render("Resume", True, (255, 255, 255))
+        text_x = self.button_rect.x + (self.button_width - button_text.get_width()) // 2
+        text_y = self.button_rect.y + (self.button_height - button_text.get_height()) // 2
+        screen.blit(button_text, (text_x, text_y))
