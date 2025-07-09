@@ -101,17 +101,19 @@ def load_car_images(map_number):
             car_images[key] = pygame.transform.scale(img, (w, h))
 
 def go_to_level_select():
-    global STATE
+    global STATE, solved
+    solved = False
     STATE = "level_select"
 
 def go_to_main_menu():
-    global STATE
+    global STATE, solved
+    solved = False
     STATE = "main_menu"
 
 def go_to_settings():
     global STATE, previous_state, solved
-    previous_state = STATE
     solved = False
+    previous_state = STATE
     STATE = "settings"
 
 def go_to_gameplay(level):
@@ -152,9 +154,9 @@ def select_astar():
 
 def reset_game():
     global board, current_stats, current_algorithm, solved
+    solved = False
     stop_event.set()
     if initial_board:
-        solved = False
         board = Board({vid: v for vid, v in initial_board.vehicles.items()})
         current_stats = Statistics()
         current_algorithm = algo_func.__name__.upper()
@@ -222,6 +224,7 @@ def solve():
             
             if animation_completed:
                 win_sound.play()
+                solved = True
                 time.sleep(0.5)
                 stats_dialog.show(final_stats)
 
@@ -238,7 +241,6 @@ def solve():
             print(f"Error during solving: {e}")
         finally:
             is_solving = False
-            solved = True
 
     threading.Thread(target=worker, daemon=True).start()
 
