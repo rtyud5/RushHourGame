@@ -161,9 +161,9 @@ Developed as a group project for **CS14003 – Introduction to Artificial Intell
 
 ```bash
 
-   git clone https://github.com/rtyud5/RushHourGame.git
+   	git clone https://github.com/rtyud5/RushHourGame.git
    
-   cd RushHourGame
+   	cd RushHourGame
 
 ```
 
