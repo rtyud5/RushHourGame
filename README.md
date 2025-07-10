@@ -13,8 +13,6 @@
 
 [![Issues][issues-shield]][issues-url]
 
-[![License][license-shield]][license-url]
-
   
 
 <!-- PROJECT LOGO -->
@@ -349,5 +347,3 @@ Project Repository: [https://github.com/rtyud5/RushHourGame](https://github.com/
 [issues-shield]: https://img.shields.io/github/issues/rtyud5/RushHourGame.svg?style=for-the-badge
 [issues-url]: https://github.com/rtyud5/RushHourGame/issues
 
-[license-shield]: https://img.shields.io/github/license/rtyud5/RushHourGame.svg?style=for-the-badge
-[license-url]: https://github.com/rtyud5/RushHourGame/blob/master/LICENSE.txt
