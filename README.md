@@ -299,27 +299,6 @@ Contributions are welcome!
 <p  align="right">(<a  href="#readme-top">back to top</a>)</p>
 
   
-
----
-
-  
-
-## License
-
-  
-
-Distributed under the HCMUS License. See `LICENSE.txt` for more information.
-
-  
-
-<p  align="right">(<a  href="#readme-top">back to top</a>)</p>
-
-  
-
----
-
-  
-
 ## Contact
 
   
