@@ -23,7 +23,7 @@
 
 <div  align="center">
 
-<a  href="https://github.com/github_username/rush-hour-ai">
+<a  href="https://github.com/rtyud5/RushHourGame">
 
 <img  src="images/logo.png"  alt="Logo"  width="80"  height="80">
 
