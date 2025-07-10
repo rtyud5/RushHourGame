@@ -325,7 +325,7 @@ Project Repository: [https://github.com/rtyud5/RushHourGame](https://github.com/
 
 - Wikipedia – [Rush Hour (puzzle)](https://en.wikipedia.org/wiki/Rush_Hour_(puzzle))
 
-- CoKoGames – [Rush Hour Online](https://www.cokogames.com/rush-hour-online/)
+- CoKoGames – [Rush Hour Online](https://www.cokogames.com/rush-hour/)
 
   
 
