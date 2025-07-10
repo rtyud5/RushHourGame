@@ -239,8 +239,6 @@ Developed as a group project for **CS14003 – Introduction to Artificial Intell
 
 - 🔲 Custom map editor *(planned)*
 
-- 🔲 Online playable version *(planned)*
-
   
 
 <p  align="right">(<a  href="#readme-top">back to top</a>)</p>
